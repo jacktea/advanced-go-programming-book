@@ -267,7 +267,9 @@ func (p *Publisher) Close() {
 }
 
 // 发送主题，可以容忍一定的超时
-func (p *Publisher) sendTopic(sub subscriber, topic topicFunc, v interface{}, wg *sync.WaitGroup) {
+func (p *Publisher) sendTopic(
+	sub subscriber, topic topicFunc, v interface{}, wg *sync.WaitGroup,
+) {
 	defer wg.Done()
 	if topic != nil && !topic(v) {
 		return
@@ -343,14 +345,14 @@ func main() {
 var limit = make(chan int, 3)
 
 func main() {
-    for _, w := range work {
-        go func() {
-            limit <- 1
-            w()
-            <-limit
-        }()
-    }
-    select{}
+	for _, w := range work {
+		go func() {
+			limit <- 1
+			w()
+			<-limit
+		}()
+	}
+	select{}
 }
 ```
 
@@ -376,7 +378,7 @@ type gatefs struct {
 func (fs gatefs) Lstat(p string) (os.FileInfo, error) {
 	fs.enter()
 	defer fs.leave()
-	return fs.Lstat(p)
+	return fs.fs.Lstat(p)
 }
 ```
 
@@ -416,9 +418,9 @@ func main() {
 
 在“Hello world 的革命”一节中，我们为了演示Newsqueak的并发特性，文中给出了并发版本素数筛的实现。并发版本的素数筛是一个经典的并发例子，通过它我们可以更深刻地理解Go语言的并发特性。“素数筛”的原理如图：
 
-![](../images/ch1.6-1-prime-sieve.png)
+![](../images/ch1-13-prime-sieve.png)
 
-*图 1.6-1 素数筛*
+*图 1-13 素数筛*
 
 
 我们需要先生成最初的`2, 3, 4, ...`自然数序列（不包含开头的0、1）：
@@ -534,37 +536,37 @@ func main() {
 我们通过`select`和`default`分支可以很容易实现一个Goroutine的退出控制:
 
 ```go
-func worker(cannel chan bool) {
+func worker(cancel chan bool) {
 	for {
 		select {
 		default:
 			fmt.Println("hello")
 			// 正常工作
-		case <-cannel:
+		case <-cancel:
 			// 退出
 		}
 	}
 }
 
 func main() {
-	cannel := make(chan bool)
-	go worker(cannel)
+	cancel := make(chan bool)
+	go worker(cancel)
 
 	time.Sleep(time.Second)
-	cannel <- true
+	cancel <- true
 }
 ```
 
 但是管道的发送操作和接收操作是一一对应的，如果要停止多个Goroutine那么可能需要创建同样数量的管道，这个代价太大了。其实我们可以通过`close`关闭一个管道来实现广播的效果，所有从关闭管道接收的操作均会收到一个零值和一个可选的失败标志。
 
 ```go
-func worker(cannel chan bool) {
+func worker(cancel chan bool) {
 	for {
 		select {
 		default:
 			fmt.Println("hello")
 			// 正常工作
-		case <-cannel:
+		case <-cancel:
 			// 退出
 		}
 	}
@@ -585,14 +587,14 @@ func main() {
 我们通过`close`来关闭`cancel`管道向多个Goroutine广播退出的指令。不过这个程序依然不够稳健：当每个Goroutine收到退出指令退出时一般会进行一定的清理工作，但是退出的清理工作并不能保证被完成，因为`main`线程并没有等待各个工作Goroutine退出工作完成的机制。我们可以结合`sync.WaitGroup`来改进:
 
 ```go
-func worker(wg *sync.WaitGroup, cannel chan bool) {
+func worker(wg *sync.WaitGroup, cancel chan bool) {
 	defer wg.Done()
 
 	for {
 		select {
 		default:
 			fmt.Println("hello")
-		case <-cannel:
+		case <-cancel:
 			return
 		}
 	}

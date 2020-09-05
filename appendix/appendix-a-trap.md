@@ -4,7 +4,7 @@
 
 ## 可变参数是空接口类型
 
-当参数的可变参数是空接口类型时，传人空接口的切片时需要注意参数展开的问题。
+当参数的可变参数是空接口类型时，传入空接口的切片时需要注意参数展开的问题。
 
 ```go
 func main() {
@@ -199,47 +199,43 @@ func main() {
 
 ## 不同Goroutine之间不满足顺序一致性内存模型
 
-因为在不同的Goroutine，main函数可能无法观测到done的状态变化, 那么for循环会陷入死循环：
+因为在不同的Goroutine，main函数中无法保证能打印出`hello, world`:
 
 ```go
 var msg string
-var done bool = false
+var done bool
+
+func setup() {
+	msg = "hello, world"
+	done = true
+}
 
 func main() {
-	runtime.GOMAXPROCS(1)
-
-	go func() {
-		msg = "hello, world"
-		done = true
-	}()
-
-	for {
-		if done {
-			println(msg)
-			break
-		}
+	go setup()
+	for !done {
 	}
+	println(msg)
 }
 ```
 
-解决的办法是用显示同步：
+解决的办法是用显式同步：
 
 ```go
 var msg string
 var done = make(chan bool)
 
+func setup() {
+	msg = "hello, world"
+	done <- true
+}
+
 func main() {
-	runtime.GOMAXPROCS(1)
-
-	go func() {
-		msg = "hello, world"
-		done <- true
-	}()
-
+	go setup()
 	<-done
 	println(msg)
 }
 ```
+msg的写入是在channel发送之前，所以能保证打印`hello, world`
 
 ## 闭包错误引用同一个变量
 

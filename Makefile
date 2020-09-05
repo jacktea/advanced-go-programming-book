@@ -27,8 +27,23 @@ server:
 	go run server.go
 
 cover:
-	convert -resize 1800x2360! cover.png cover.jpg
-	convert -resize 200x262!   cover.png cover_small.jpg
+	convert A20181610.jpg cover.png
+	convert -resize 1800x2360! A20181610.jpg cover.jpg
+	convert -resize 200x262!   A20181610.jpg cover_small.jpg
+
+
+# https://chai2010.cn/advanced-go-programming-book
+deploy:
+	-rm -rf _book
+	gitbook build
+
+	cd _book && \
+		git init && \
+		git add . && \
+		git commit -m "Update github pages" && \
+		git push --force --quiet "https://github.com/chai2010/advanced-go-programming-book.git" master:gh-pages
+
+	@echo deploy done
 
 clean:
 	-rm -rf _book
